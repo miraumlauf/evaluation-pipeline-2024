@@ -245,6 +245,8 @@ def main():
     else:
         model_args, data_args, training_args = parser.parse_args_into_dataclasses()
     
+    
+    
     # Check for the use of early stopping
     if data_args.patience: 
         # training_args.eval_steps = data_args.eval_every
@@ -373,22 +375,31 @@ def main():
     # https://huggingface.co/docs/datasets/loading_datasets.html.
 
     # Labels
+
     if data_args.task_name is not None:
+        print("Data task is not None")
         is_regression = data_args.task_name == "stsb"
         if not is_regression:
+            print("Is not regression")
             label_list = raw_datasets["train"].features["label"].names
+            print("Label list", label_list)
             num_labels = len(label_list)
         else:
             num_labels = 1
     else:
+        print("Data task is none")
+        
         # Trying to have good defaults here, don't hesitate to tweak to your needs.
         is_regression = raw_datasets["train"].features["label"].dtype in ["float32", "float64"]
         if is_regression:
+            print("Is none and regression")
             num_labels = 1
         else:
+            print("Is none and not regression")
             # A useful fast method:
             # https://huggingface.co/docs/datasets/package_reference/main_classes.html#datasets.Dataset.unique
             label_list = raw_datasets["train"].unique("label")
+            print("Label list", label_list)
             label_list.sort()  # Let's sort it for determinism
             num_labels = len(label_list)
     
@@ -423,8 +434,20 @@ def main():
         revision=model_args.model_revision,
         use_auth_token=True if model_args.use_auth_token else None,
         trust_remote_code=model_args.trust_remote_code,
+        #ignore_mismatched_sizes=True,
         ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
     )
+    
+    # # initialize for 3 layers if mismatched?
+    # model.classifier = nn.Linear(config.dim, 3)
+    # model.classifier.apply(model._init_weights)
+    
+    
+    # added
+    print(f"Loaded model has num_labels: {model.config.num_labels}")
+    print(f"Dataset-derived num_labels: {num_labels}")
+    print(f"🚀 Task: {data_args.task_name}, Number of labels: {num_labels}")
+    # ------------
 
     # Freeze all parameters (including embeddings) except the classifier head
     if model_args.freeze_model:
