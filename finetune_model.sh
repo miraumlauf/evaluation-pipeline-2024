@@ -1,6 +1,22 @@
 #!/bin/bash
+#SBATCH --job-name=2fh_256
+#SBATCH --nodes=1
+#SBATCH --ntasks=1          
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=64GB
+#SBATCH --time=04:00:00
+#SBATCH --partition=gpu_4
+#SBATCH --gres=gpu:1
 
-MODEL_PATH=$1
+
+
+# added enviroment with installed requirements
+source activate eval_24
+
+
+#MODEL_PATH=$1
+MODEL_PATH="../lingua_2fh_sequence_256_15300"
+
 LR=${2:-5e-5}           # default: 5e-5
 PATIENCE=${3:-3}       # default: 3
 BSZ=${4:-64}            # default: 64
@@ -12,7 +28,10 @@ SEED=${6:-12}           # default: 12
 # and remove the `--do_train` and `--do_eval` arguments.
 
 model_basename=$(basename $MODEL_PATH)
-for task in {boolq,cola,mnli,mnli-mm,mrpc,multirc,qnli,qqp,rte,sst2,wsc}; do
+RUN_SUFFIX="_2" 
+# removed mnli and mnli-mm 
+for task in {boolq,cola,mrpc,multirc,qnli,qqp,rte,sst2,wsc}; do
+    echo "Running fine-tuning for task: $task"  
 	if [[ $task = "mnli-mm" ]]; then
 		TRAIN_NAME="mnli"
 		VALID_NAME="mnli-mm"
@@ -25,11 +44,13 @@ for task in {boolq,cola,mnli,mnli-mm,mrpc,multirc,qnli,qqp,rte,sst2,wsc}; do
 		MODEL_PATH_FULL=$MODEL_PATH
 	fi
 
-	mkdir -p results/finetune/$model_basename/$task/
+	#mkdir -p results/finetune/$model_basename/$task/
+	RESULTS_DIR=results/finetune/${model_basename}${RUN_SUFFIX}/$task/
+	mkdir -p $RESULTS_DIR
 
 	python finetune_classification.py \
 	  --model_name_or_path $MODEL_PATH_FULL \
-	  --output_dir results/finetune/$model_basename/$task/ \
+	  --output_dir $RESULTS_DIR \
 	  --train_file evaluation_data/glue_filtered/$TRAIN_NAME.train.jsonl \
 	  --validation_file evaluation_data/glue_filtered/$VALID_NAME.valid.jsonl \
 	  --do_train $DO_TRAIN \
@@ -43,7 +64,8 @@ for task in {boolq,cola,mnli,mnli-mm,mrpc,multirc,qnli,qqp,rte,sst2,wsc}; do
 	  --evaluation_strategy epoch \
 	  --save_strategy epoch \
 	  --overwrite_output_dir \
-	  --seed $SEED
+	  --seed $SEED \
+	  --trust_remote_code
 done
 
 # Add `--trust_remote_code` if you need to load custom config/model files.
